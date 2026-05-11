@@ -192,7 +192,7 @@ export default function BusinessesPage() {
   const [statusFilter, setStatusFilter] = useState('');
   const [selected, setSelected] = useState<Business | null>(null);
   const limit = 20;
-  const debounceRef = useRef<ReturnType<typeof setTimeout>>();
+  const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   const handleSearchChange = (value: string) => {
     setSearch(value);
