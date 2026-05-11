@@ -23,16 +23,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const savedToken = localStorage.getItem('token');
     if (savedToken) {
+      document.cookie = 'token=' + savedToken + '; path=/; max-age=86400; SameSite=Lax';
       setToken(savedToken);
       api.get('/api/profiles/me')
         .then((res) => setUser(res.data))
         .catch(() => {
           localStorage.removeItem('token');
+          document.cookie = 'token=; path=/; max-age=0; SameSite=Lax';
           setToken(null);
           setUser(null);
         })
         .finally(() => setIsLoading(false));
     } else {
+      document.cookie = 'token=; path=/; max-age=0; SameSite=Lax';
       setIsLoading(false);
     }
 
@@ -53,6 +56,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       throw new Error(res.data.message || 'Conta bloqueada. Realize o pagamento para continuar.');
     }
     localStorage.setItem('token', res.data.token);
+    document.cookie = 'token=' + res.data.token + '; path=/; max-age=86400; SameSite=Lax';
     setToken(res.data.token);
     const profileRes = await api.get('/api/profiles/me');
     setUser(profileRes.data);
@@ -61,6 +65,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const loginWithToken = async (newToken: string) => {
     localStorage.setItem('token', newToken);
+    document.cookie = 'token=' + newToken + '; path=/; max-age=86400; SameSite=Lax';
     setToken(newToken);
     const profileRes = await api.get('/api/profiles/me');
     setUser(profileRes.data);
@@ -68,6 +73,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = () => {
     localStorage.removeItem('token');
+    document.cookie = 'token=; path=/; max-age=0; SameSite=Lax';
     setToken(null);
     setUser(null);
   };
