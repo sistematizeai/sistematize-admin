@@ -8,6 +8,7 @@ interface AuthContextType {
   user: User | null;
   token: string | null;
   login: (email: string, password: string) => Promise<{ requires_2fa?: boolean; temp_token?: string }>;
+  loginWithToken: (newToken: string) => Promise<void>;
   logout: () => void;
   isLoading: boolean;
 }
@@ -25,11 +26,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setToken(savedToken);
       api.get('/api/profiles/me')
         .then((res) => setUser(res.data))
-        .catch(() => { localStorage.removeItem('token'); })
+        .catch(() => {
+          localStorage.removeItem('token');
+          setToken(null);
+          setUser(null);
+        })
         .finally(() => setIsLoading(false));
     } else {
       setIsLoading(false);
     }
+
+    const handleUnauthorized = () => {
+      setToken(null);
+      setUser(null);
+    };
+    window.addEventListener('auth:unauthorized', handleUnauthorized);
+    return () => window.removeEventListener('auth:unauthorized', handleUnauthorized);
   }, []);
 
   const login = async (email: string, password: string) => {
@@ -37,11 +49,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (res.data.requires_2fa) {
       return { requires_2fa: true, temp_token: res.data.temp_token };
     }
+    if (res.data.blocked) {
+      throw new Error(res.data.message || 'Conta bloqueada. Realize o pagamento para continuar.');
+    }
     localStorage.setItem('token', res.data.token);
     setToken(res.data.token);
     const profileRes = await api.get('/api/profiles/me');
     setUser(profileRes.data);
     return {};
+  };
+
+  const loginWithToken = async (newToken: string) => {
+    localStorage.setItem('token', newToken);
+    setToken(newToken);
+    const profileRes = await api.get('/api/profiles/me');
+    setUser(profileRes.data);
   };
 
   const logout = () => {
@@ -51,7 +73,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, token, login, logout, isLoading }}>
+    <AuthContext.Provider value={{ user, token, login, loginWithToken, logout, isLoading }}>
       {children}
     </AuthContext.Provider>
   );
