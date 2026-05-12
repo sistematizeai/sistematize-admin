@@ -85,7 +85,7 @@ export default function DashboardPage() {
       const businesses: Business[] = bizRes.data.data || [];
       const totalBusinesses = statsRes.data.totalBusinesses || 0;
       const totalUsers = usersRes.data.total || 0;
-      const totalPlans = (plansRes.data || []).filter((p: { is_active: boolean }) => p.is_active).length;
+      const totalPlans = (Array.isArray(plansRes.data) ? plansRes.data : []).filter((p: { is_active: boolean }) => p.is_active).length;
       const statusCounts: Record<string, number> = statsRes.data.statusCounts || {};
 
       setStats({ totalBusinesses, totalUsers, totalPlans, statusCounts });

@@ -21,7 +21,7 @@ export default function ModulesPage() {
     setError(null);
     try {
       const res = await api.get('/api/modules');
-      setModules(res.data || []);
+      setModules(Array.isArray(res.data) ? res.data : []);
     } catch {
       setError('Erro ao carregar modulos. Tente novamente.');
     } finally {

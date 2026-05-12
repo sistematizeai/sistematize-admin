@@ -41,7 +41,7 @@ export default function PlansPage() {
     setError(null);
     try {
       const res = await api.get('/api/plans');
-      setPlans(res.data || []);
+      setPlans(Array.isArray(res.data) ? res.data : []);
     } catch {
       setError('Erro ao carregar planos.');
     } finally {
