@@ -8,6 +8,7 @@ const NAV_ITEMS = [
   { label: 'Dashboard', path: '/dashboard', roles: ['master_admin', 'sub_admin'] },
   { label: 'Empresas', path: '/dashboard/businesses', roles: ['master_admin', 'sub_admin'] },
   { label: 'Planos', path: '/dashboard/plans', roles: ['master_admin', 'sub_admin'] },
+  { label: 'Assinaturas', path: '/dashboard/subscriptions', roles: ['master_admin', 'sub_admin'] },
   { label: 'Modulos', path: '/dashboard/modules', roles: ['master_admin', 'sub_admin'] },
   { label: 'Usuarios', path: '/dashboard/users', roles: ['master_admin', 'sub_admin'] },
   { label: 'Auditoria', path: '/dashboard/audit', roles: ['master_admin'] },

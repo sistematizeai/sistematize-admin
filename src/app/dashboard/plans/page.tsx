@@ -15,14 +15,26 @@ interface Plan {
   is_active: boolean;
 }
 
+const emptyForm = {
+  name: '', description: '', price_monthly: 0, price_yearly: 0,
+  max_collaborators: 1, max_services: 10, max_appointments_month: 100,
+};
+
 function formatCurrency(val: number) {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
 }
+
+const input = 'w-full px-4 py-3 rounded-xl border border-[var(--color-border)] bg-white text-sm focus:outline-none focus:border-[var(--color-accent)] focus:ring-2 focus:ring-[var(--color-accent-soft)] transition-all';
+const label = 'block text-xs font-semibold text-[var(--color-text-secondary)] mb-1.5';
 
 export default function PlansPage() {
   const [plans, setPlans] = useState<Plan[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [editingPlan, setEditingPlan] = useState<Plan | null>(null);
+  const [form, setForm] = useState(emptyForm);
+  const [saving, setSaving] = useState(false);
 
   const fetchPlans = useCallback(async () => {
     setLoading(true);
@@ -31,13 +43,70 @@ export default function PlansPage() {
       const res = await api.get('/api/plans');
       setPlans(res.data || []);
     } catch {
-      setError('Erro ao carregar planos. Tente novamente.');
+      setError('Erro ao carregar planos.');
     } finally {
       setLoading(false);
     }
   }, []);
 
   useEffect(() => { fetchPlans(); }, [fetchPlans]);
+
+  function openCreate() {
+    setEditingPlan(null);
+    setForm(emptyForm);
+    setModalOpen(true);
+  }
+
+  function openEdit(plan: Plan) {
+    setEditingPlan(plan);
+    setForm({
+      name: plan.name,
+      description: plan.description || '',
+      price_monthly: plan.price_monthly,
+      price_yearly: plan.price_yearly,
+      max_collaborators: plan.max_collaborators,
+      max_services: plan.max_services,
+      max_appointments_month: plan.max_appointments_month,
+    });
+    setModalOpen(true);
+  }
+
+  async function handleSave() {
+    setSaving(true);
+    setError(null);
+    try {
+      if (editingPlan) {
+        await api.put(`/api/plans/${editingPlan.id}`, form);
+      } else {
+        await api.post('/api/plans', form);
+      }
+      setModalOpen(false);
+      await fetchPlans();
+    } catch {
+      setError(`Erro ao ${editingPlan ? 'atualizar' : 'criar'} plano.`);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function toggleActive(plan: Plan) {
+    try {
+      await api.put(`/api/plans/${plan.id}`, { is_active: !plan.is_active });
+      await fetchPlans();
+    } catch {
+      setError('Erro ao alterar status do plano.');
+    }
+  }
+
+  async function handleDelete(plan: Plan) {
+    if (!confirm(`Excluir o plano "${plan.name}"? Essa acao nao pode ser desfeita.`)) return;
+    try {
+      await api.delete(`/api/plans/${plan.id}`);
+      await fetchPlans();
+    } catch {
+      setError('Erro ao excluir plano.');
+    }
+  }
 
   if (loading) {
     return (
@@ -49,11 +118,26 @@ export default function PlansPage() {
 
   return (
     <>
-      {/* Hero Panel */}
-      <div className="bg-white -mx-7 -mt-6 px-7 pt-4 pb-5 border-b border-[var(--color-border)] shadow-[0_2px_8px_rgba(0,0,0,0.03)]">
-        <h1 className="text-lg font-bold text-[var(--color-text-primary)]">Planos</h1>
-        <p className="text-xs text-[var(--color-text-muted)] mt-0.5">{plans.length} plano{plans.length !== 1 ? 's' : ''} cadastrado{plans.length !== 1 ? 's' : ''}</p>
+      {/* Header */}
+      <div className="bg-white -mx-7 -mt-6 px-7 pt-4 pb-5 border-b border-[var(--color-border)] shadow-[0_2px_8px_rgba(0,0,0,0.03)] flex items-center justify-between">
+        <div>
+          <h1 className="text-lg font-bold text-[var(--color-text-primary)]">Planos</h1>
+          <p className="text-xs text-[var(--color-text-muted)] mt-0.5">{plans.length} plano{plans.length !== 1 ? 's' : ''} cadastrado{plans.length !== 1 ? 's' : ''}</p>
+        </div>
+        <button
+          onClick={openCreate}
+          className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-[#4A6CF7] to-[#6C5CE7] text-white text-sm font-semibold hover:brightness-110 transition-all cursor-pointer flex items-center gap-2"
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Novo Plano
+        </button>
       </div>
+
+      {error && (
+        <div className="mt-4 p-4 rounded-xl bg-[var(--color-rose-soft)] border border-[var(--color-rose)]/20 text-sm text-[var(--color-rose)] font-medium">
+          {error}
+        </div>
+      )}
 
       <div className="mt-6">
         {plans.length === 0 ? (
@@ -65,6 +149,9 @@ export default function PlansPage() {
                 </svg>
               </div>
               <p className="text-sm font-medium text-[var(--color-text-secondary)]">Nenhum plano cadastrado</p>
+              <button onClick={openCreate} className="mt-3 px-4 py-2 rounded-xl bg-[var(--color-accent)] text-white text-xs font-semibold cursor-pointer hover:brightness-110 transition-all">
+                Criar Primeiro Plano
+              </button>
             </div>
           </div>
         ) : (
@@ -78,12 +165,16 @@ export default function PlansPage() {
                       <p className="text-xs text-[var(--color-text-muted)] mt-0.5">{plan.description}</p>
                     )}
                   </div>
-                  <span className="px-2.5 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider" style={{
-                    color: plan.is_active ? 'var(--color-green)' : 'var(--color-rose)',
-                    backgroundColor: plan.is_active ? 'var(--color-green-soft)' : 'var(--color-rose-soft)',
-                  }}>
+                  <button
+                    onClick={() => toggleActive(plan)}
+                    className="px-2.5 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider cursor-pointer transition-all hover:opacity-80"
+                    style={{
+                      color: plan.is_active ? 'var(--color-green)' : 'var(--color-rose)',
+                      backgroundColor: plan.is_active ? 'var(--color-green-soft)' : 'var(--color-rose-soft)',
+                    }}
+                  >
                     {plan.is_active ? 'Ativo' : 'Inativo'}
-                  </span>
+                  </button>
                 </div>
 
                 <div className="space-y-1 mb-5">
@@ -114,11 +205,89 @@ export default function PlansPage() {
                     <span className="text-[var(--color-text-secondary)]">Ate <strong className="text-[var(--color-text-primary)]">{plan.max_appointments_month}</strong> agendamentos/mes</span>
                   </div>
                 </div>
+
+                <div className="flex items-center gap-2 mt-4 pt-4 border-t border-[var(--color-border)]">
+                  <button
+                    onClick={() => openEdit(plan)}
+                    className="flex-1 px-3 py-2 rounded-xl border border-[var(--color-border)] text-xs font-semibold text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-surface)] transition-all cursor-pointer"
+                  >
+                    Editar
+                  </button>
+                  <button
+                    onClick={() => handleDelete(plan)}
+                    className="px-3 py-2 rounded-xl text-xs font-semibold text-[var(--color-rose)] hover:bg-[var(--color-rose-soft)] transition-all cursor-pointer"
+                  >
+                    Excluir
+                  </button>
+                </div>
               </div>
             ))}
           </div>
         )}
       </div>
+
+      {/* Modal */}
+      {modalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setModalOpen(false)} />
+          <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg p-6 space-y-4">
+            <div className="flex items-center justify-between mb-2">
+              <h2 className="text-lg font-bold text-[var(--color-text-primary)]">
+                {editingPlan ? 'Editar Plano' : 'Novo Plano'}
+              </h2>
+              <button onClick={() => setModalOpen(false)} className="w-8 h-8 rounded-lg bg-[var(--color-bg-surface)] flex items-center justify-center hover:bg-[var(--color-border)]/30 cursor-pointer transition-all">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              </button>
+            </div>
+
+            <div>
+              <label className={label}>Nome</label>
+              <input className={input} value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} placeholder="Ex: Basico" />
+            </div>
+            <div>
+              <label className={label}>Descricao</label>
+              <input className={input} value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} placeholder="Ex: Para profissionais autonomos" />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className={label}>Preco Mensal (R$)</label>
+                <input type="number" step="0.01" className={input} value={form.price_monthly} onChange={e => setForm({ ...form, price_monthly: Number(e.target.value) })} />
+              </div>
+              <div>
+                <label className={label}>Preco Anual (R$)</label>
+                <input type="number" step="0.01" className={input} value={form.price_yearly} onChange={e => setForm({ ...form, price_yearly: Number(e.target.value) })} />
+              </div>
+            </div>
+            <div className="grid grid-cols-3 gap-3">
+              <div>
+                <label className={label}>Max. Colaboradores</label>
+                <input type="number" className={input} value={form.max_collaborators} onChange={e => setForm({ ...form, max_collaborators: Number(e.target.value) })} />
+              </div>
+              <div>
+                <label className={label}>Max. Servicos</label>
+                <input type="number" className={input} value={form.max_services} onChange={e => setForm({ ...form, max_services: Number(e.target.value) })} />
+              </div>
+              <div>
+                <label className={label}>Max. Agend./Mes</label>
+                <input type="number" className={input} value={form.max_appointments_month} onChange={e => setForm({ ...form, max_appointments_month: Number(e.target.value) })} />
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-3 pt-2">
+              <button onClick={() => setModalOpen(false)} className="px-5 py-2.5 rounded-xl border border-[var(--color-border)] text-sm font-medium text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-surface)] transition-all cursor-pointer">
+                Cancelar
+              </button>
+              <button
+                onClick={handleSave}
+                disabled={saving || !form.name}
+                className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-[#4A6CF7] to-[#6C5CE7] text-white text-sm font-semibold hover:brightness-110 transition-all cursor-pointer disabled:opacity-50"
+              >
+                {saving ? 'Salvando...' : editingPlan ? 'Atualizar' : 'Criar Plano'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }
