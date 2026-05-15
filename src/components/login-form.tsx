@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useAuth } from '@/lib/auth';
 import { useRouter } from 'next/navigation';
 import api from '@/lib/api-client';
+import { getApiErrorMessage } from '@/lib/errors';
 
 export function LoginForm() {
   const { login, loginWithToken } = useAuth();
@@ -28,8 +29,8 @@ export function LoginForm() {
       } else {
         router.push('/dashboard');
       }
-    } catch (err: any) {
-      setError(err.response?.data?.message || err.message || 'Erro ao fazer login');
+    } catch (err: unknown) {
+      setError(getApiErrorMessage(err, 'Erro ao fazer login'));
     } finally {
       setLoading(false);
     }
@@ -46,8 +47,8 @@ export function LoginForm() {
       });
       await loginWithToken(res.data.token);
       router.push('/dashboard');
-    } catch (err: any) {
-      setError(err.response?.data?.message || 'Codigo 2FA invalido');
+    } catch (err: unknown) {
+      setError(getApiErrorMessage(err, 'Codigo 2FA invalido'));
     } finally {
       setLoading(false);
     }

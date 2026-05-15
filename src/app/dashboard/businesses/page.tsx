@@ -80,8 +80,9 @@ function DetailDrawer({ business, onClose }: { business: Business; onClose: () =
     return () => { document.removeEventListener('keydown', handler); document.body.style.overflow = ''; };
   }, [onClose]);
 
+  const [now] = useState(() => Date.now());
   const trialDaysLeft = business.trial_ends_at
-    ? Math.max(0, Math.ceil((new Date(business.trial_ends_at).getTime() - Date.now()) / (1000 * 60 * 60 * 24)))
+    ? Math.max(0, Math.ceil((new Date(business.trial_ends_at).getTime() - now) / (1000 * 60 * 60 * 24)))
     : null;
 
   return (
